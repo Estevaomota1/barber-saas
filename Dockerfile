@@ -5,6 +5,10 @@ RUN apt-get update && apt-get install -y \
 
 RUN docker-php-ext-install pdo pdo_sqlite
 
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
+
 WORKDIR /var/www/html
 
 COPY . .
@@ -19,7 +23,7 @@ RUN chown -R www-data:www-data /var/www/html && \
 
 RUN a2enmod rewrite
 
-RUN echo '<IfModule mod_rewrite.c>\n    RewriteEngine On\n    RewriteCond %{REQUEST_FILENAME} !-f\n    RewriteCond %{REQUEST_FILENAME} !-d\n    RewriteRule ^ index.php [QSA,L]\n</IfModule>' > /var/www/html/public/.htaccess
+RUN sed -i '/<\/VirtualHost>/i\\t<Directory /var/www/html/public>\n\t\tAllowOverride All\n\t\tRequire all granted\n\t</Directory>' /etc/apache2/sites-available/000-default.conf
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
