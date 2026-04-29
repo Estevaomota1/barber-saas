@@ -21,6 +21,10 @@ RUN chown -R www-data:www-data /var/www/html && \
     chmod -R 755 /var/www/html/storage && \
     chmod -R 755 /var/www/html/bootstrap/cache
 
+RUN apt-get update && apt-get install -y \
+git curl zip unzip libsqlite3-dev libpq-dev
+
+RUN docker-php-ext-install pdo pdo_sqlite pdo_pgsql
 RUN a2enmod rewrite
 
 RUN sed -i '/<\/VirtualHost>/i\\t<Directory /var/www/html/public>\n\t\tAllowOverride All\n\t\tRequire all granted\n\t</Directory>' /etc/apache2/sites-available/000-default.conf
