@@ -8,7 +8,8 @@ class Appointment extends Model
 {
    protected $fillable = [
     'client_id',
-    'appointment_date'
+    'appointment_date',
+    'status'
 ];
 public function client()
 {

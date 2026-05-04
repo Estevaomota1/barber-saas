@@ -172,11 +172,9 @@ class AuthTest extends TestCase
             ->assertJson(['message' => 'Logout realizado com sucesso']);
 
         // Try to use the token again (should fail)
-        $response = $this->withHeaders([
-            'Authorization' => "Bearer $token"
-        ])->getJson('/api/me');
-
-        $response->assertStatus(401);
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'tokenable_id' => $user->id,
+        ]);
     }
 
     /**

@@ -70,9 +70,10 @@ class AppointmentController extends Controller
 
             // ✅ Cria o agendamento
             $appointment = Appointment::create([
-                'client_id' => $client->id,
-                'appointment_date' => $validated['appointment_date']
-            ]);
+    'client_id' => $client->id,
+    'appointment_date' => $validated['appointment_date'],
+    'status' => 'pending'
+]);
 
             return response()->json([
                 'message' => 'Agendamento criado com sucesso',
@@ -208,6 +209,45 @@ class AppointmentController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Erro ao deletar agendamento',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+     /**
+     * Update appointment status
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        try {
+            $validated = $request->validate([
+                'status' => 'required|in:pending,confirmed,cancelled,completed'
+            ]);
+
+            $appointment = Appointment::where('id', $id)
+                ->whereHas('client', function ($query) use ($request) {
+                    $query->where('barbershop_id', $request->user()->barbershop_id);
+                })
+                ->firstOrFail();
+
+            $appointment->update(['status' => $validated['status']]);
+
+            return response()->json([
+                'message' => 'Status atualizado com sucesso',
+                'data' => $appointment
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'message' => 'Status inválido',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Agendamento não encontrado'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erro ao atualizar status',
                 'error' => $e->getMessage()
             ], 500);
         }
