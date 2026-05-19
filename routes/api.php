@@ -12,6 +12,7 @@ use App\Http\Controllers\WhatsAppController;
 Route::get('/health', fn() => response()->json(['status' => 'ok']));
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/whatsapp/webhook', [WhatsAppController::class, 'webhook']);
 
 
 Route::middleware('auth:sanctum')->group(function () {
