@@ -6,6 +6,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\BarberController;
+use App\Http\Controllers\WhatsAppController;
+
 
 Route::get('/health', fn() => response()->json(['status' => 'ok']));
 Route::post('/register', [AuthController::class, 'register']);
@@ -20,5 +22,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('clients', ClientController::class);
     Route::apiResource('appointments', AppointmentController::class);
     Route::patch('appointments/{id}/status', [AppointmentController::class, 'updateStatus']);
-
+    Route::get('/whatsapp/status', [WhatsAppController::class, 'status']);
+    Route::get('/whatsapp/connect', [WhatsAppController::class, 'connect']);
+    Route::delete('/whatsapp/disconnect', [WhatsAppController::class, 'disconnect']);
 });
