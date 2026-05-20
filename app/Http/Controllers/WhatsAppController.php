@@ -58,22 +58,25 @@ class WhatsAppController extends Controller
     }
 
     public function webhook(Request $request)
-    {
-        $event = strtolower($request->input('event'));
-        $data = $request->input('data');
+{
+    $payload = $request->all();
+    \Log::info('WhatsApp Webhook:', $payload);
 
-        if ($event === 'qrcode.updated' || $event === 'qrcode_updated') {
-            $qrBase64 = $data['qrcode']['base64'] ?? null;
-            if ($qrBase64) {
-                cache()->put('whatsapp_qrcode', $qrBase64, now()->addMinutes(2));
-            }
+    $event = strtolower($request->input('event'));
+    $data = $request->input('data');
+
+    if (str_contains($event, 'qrcode')) {
+        $qrBase64 = $data['qrcode']['base64'] ?? $data['base64'] ?? null;
+        if ($qrBase64) {
+            cache()->put('whatsapp_qrcode', $qrBase64, now()->addMinutes(2));
         }
-
-        if ($event === 'connection.update' || $event === 'connection_updated') {
-            $status = $data['state'] ?? 'close';
-            cache()->put('whatsapp_status', $status, now()->addMinutes(60));
-        }
-
-        return response()->json(['ok' => true]);
     }
+
+    if (str_contains($event, 'connection')) {
+        $status = $data['state'] ?? 'close';
+        cache()->put('whatsapp_status', $status, now()->addMinutes(60));
+    }
+
+    return response()->json(['ok' => true]);
+}
 }
