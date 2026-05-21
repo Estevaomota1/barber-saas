@@ -1,90 +1,79 @@
 <?php
-
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
-use App\Services\EvolutionService;
-use Exception;
+use Illuminate\Support\Facades\Http;
 
 class WhatsAppController extends Controller
 {
-    protected $evolution;
-
-    public function __construct(EvolutionService $evolution)
-    {
-        $this->evolution = $evolution;
-    }
+    private string $evolutionUrl = 'https://evolution-api-latest-swzi.onrender.com';
+    private string $evolutionKey = 'barber-evolution-2026-xyz';
+    private string $instance = 'barbearia_principal';
 
     public function connect()
     {
-        try {
-            $response = $this->evolution->connect();
-            
-            // Na v2, o connect retorna o base64 do QR Code
-            $qr = $response["base64"] ?? $response["code"] ?? null;
+        $webhookUrl = config('app.url') . '/api/whatsapp/webhook';
 
-            return response()->json([
-                "success" => true,
-                "base64" => $qr,
-                "count" => $qr ? 1 : 0
+        Http::withHeaders(['apikey' => $this->evolutionKey])
+            ->post("{$this->evolutionUrl}/webhook/set/{$this->instance}", [
+                'webhook' => [
+                    'enabled' => true,
+                    'url' => $webhookUrl,
+                    'webhookByEvents' => true,
+                    'webhookBase64' => true,
+                    'events' => ['QRCODE_UPDATED', 'CONNECTION_UPDATE'],
+                ]
             ]);
-        } catch (Exception $e) {
-            return response()->json([
-                "success" => false,
-                "message" => "Erro ao conectar WhatsApp",
-                "error" => $e->getMessage()
-            ], 500);
-        }
+
+        Http::withHeaders(['apikey' => $this->evolutionKey])
+            ->get("{$this->evolutionUrl}/instance/connect/{$this->instance}");
+
+        $qr = cache()->get('whatsapp_qrcode');
+        return response()->json(['base64' => $qr, 'count' => $qr ? 1 : 0]);
     }
 
     public function status()
     {
-        try {
-            $status = $this->evolution->getInstanceStatus();
-            return response()->json([
-                "success" => true,
-                "status" => ($status["instanceState"] ?? "") === "open" ? "connected" : "disconnected",
-                "base64" => cache()->get("whatsapp_qrcode"),
-            ]);
-        } catch (Exception $e) {
-            return response()->json([
-                "success" => false,
-                "message" => "Erro ao buscar status",
-                "error" => $e->getMessage()
-            ], 500);
-        }
+        $response = Http::withHeaders(['apikey' => $this->evolutionKey])
+            ->get("{$this->evolutionUrl}/instance/fetchInstances");
+
+        $instances = $response->json();
+        $instance = collect($instances)->firstWhere('name', $this->instance);
+        $qr = cache()->get('whatsapp_qrcode');
+
+        return response()->json([
+            'status' => ($instance && $instance['connectionStatus'] === 'open') ? 'connected' : 'disconnected',
+            'base64' => $qr,
+        ]);
     }
 
     public function disconnect()
     {
-        try {
-            $this->evolution->logout();
-            return response()->json(["success" => true]);
-        } catch (Exception $e) {
-            return response()->json(["success" => false, "error" => $e->getMessage()], 500);
-        }
+        Http::withHeaders(['apikey' => $this->evolutionKey])
+            ->delete("{$this->evolutionUrl}/instance/logout/{$this->instance}");
+
+        return response()->json(['success' => true]);
     }
 
     public function webhook(Request $request)
     {
         $payload = $request->all();
-        \Log::info("WhatsApp Webhook:", $payload);
+        \Log::info('WhatsApp Webhook:', $payload);
 
-        $event = strtolower($request->input("event"));
-        $data = $request->input("data");
+        $event = strtolower($request->input('event'));
+        $data = $request->input('data');
 
-        if (str_contains($event, "qrcode")) {
-            $qrBase64 = $data["qrcode"]["base64"] ?? $data["base64"] ?? null;
+        if (str_contains($event, 'qrcode')) {
+            $qrBase64 = $data['qrcode']['base64'] ?? $data['base64'] ?? null;
             if ($qrBase64) {
-                cache()->put("whatsapp_qrcode", $qrBase64, now()->addMinutes(2));
+                cache()->put('whatsapp_qrcode', $qrBase64, now()->addMinutes(2));
             }
         }
 
-        if (str_contains($event, "connection")) {
-            $status = $data["state"] ?? "close";
-            cache()->put("whatsapp_status", $status, now()->addMinutes(60));
+        if (str_contains($event, 'connection')) {
+            $status = $data['state'] ?? 'close';
+            cache()->put('whatsapp_status', $status, now()->addMinutes(60));
         }
 
-        return response()->json(["ok" => true]);
+        return response()->json(['ok' => true]);
     }
 }
