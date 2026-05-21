@@ -26,6 +26,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/whatsapp/status', [WhatsAppController::class, 'status']);
     Route::get('/whatsapp/connect', [WhatsAppController::class, 'connect']);
     Route::delete('/whatsapp/disconnect', [WhatsAppController::class, 'disconnect']);
+    Route::get('/whatsapp/debug', [WhatsAppController::class, 'debug']);
+    Route::post('/whatsapp/debug', [WhatsAppController::class, 'debug']);
     Route::post('/whatsapp/debug', function(\Illuminate\Http\Request $request) {
     return response()->json($request->all());
 });
