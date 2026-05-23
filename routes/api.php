@@ -9,6 +9,8 @@ use App\Http\Controllers\BarberController;
 use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ProductController;
+
 
 Route::get('/test-vivo', function() {
     return "SISTEMA VIVO";
@@ -45,4 +47,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/orders/{order}/items', [OrderController::class, 'addItem']);
     Route::delete('/orders/{order}/items/{item}', [OrderController::class, 'removeItem']);
     Route::patch('/orders/{order}/close', [OrderController::class, 'close']);
+
+
+    Route::get('/products', [ProductController::class, 'index']);
+    Route::post('/products', [ProductController::class, 'store']);
+    Route::put('/products/{product}', [ProductController::class, 'update']);
+    Route::patch('/products/{product}/stock', [ProductController::class, 'adjustStock']);
+    Route::delete('/products/{product}', [ProductController::class, 'destroy']);
 });
