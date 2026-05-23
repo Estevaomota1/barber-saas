@@ -21,79 +21,125 @@ class WhatsAppController extends Controller
 
     public function connect()
     {
-        $webhookUrl = config('app.url') . '/api/whatsapp/webhook';
+        try {
+            $webhookUrl = config('app.url') . '/api/whatsapp/webhook';
 
-        Http::withHeaders(['apikey' => $this->evolutionKey])
-            ->post("{$this->evolutionUrl}/webhook/set/{$this->instance}", [
-                'url'               => $webhookUrl,
-                'webhook_by_events' => true,
-                'webhook_base64'    => true,
-                'events'            => ['QRCODE_UPDATED', 'CONNECTION_UPDATE'],
-            ]);
+            Http::withHeaders(['apikey' => $this->evolutionKey])
+                ->post("{$this->evolutionUrl}/webhook/set/{$this->instance}", [
+                    'url'               => $webhookUrl,
+                    'webhook_by_events' => true,
+                    'webhook_base64'    => true,
+                    'events'            => ['QRCODE_UPDATED', 'CONNECTION_UPDATE'],
+                ]);
 
-        Http::withHeaders(['apikey' => $this->evolutionKey])
-            ->get("{$this->evolutionUrl}/instance/connect/{$this->instance}");
+            Http::withHeaders(['apikey' => $this->evolutionKey])
+                ->get("{$this->evolutionUrl}/instance/connect/{$this->instance}");
 
-        $qr = cache()->get('whatsapp_qrcode');
+            $qr = cache()->get('whatsapp_qrcode');
 
-        return response()->json(['base64' => $qr, 'count' => $qr ? 1 : 0]);
+            return response()->json(['base64' => $qr, 'count' => $qr ? 1 : 0]);
+
+        } catch (\Exception $e) {
+            Log::error('WhatsApp connect error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+                'line'    => $e->getLine(),
+                'file'    => $e->getFile(),
+            ], 500);
+        }
     }
 
     public function status()
     {
-        $response  = Http::withHeaders(['apikey' => $this->evolutionKey])
-            ->get("{$this->evolutionUrl}/instance/fetchInstances");
+        try {
+            $response  = Http::withHeaders(['apikey' => $this->evolutionKey])
+                ->get("{$this->evolutionUrl}/instance/fetchInstances");
 
-        $instances = $response->json();
-        $instance  = collect($instances)->firstWhere('name', $this->instance);
-        $qr        = cache()->get('whatsapp_qrcode');
+            $instances = $response->json();
+            $instance  = collect($instances)->firstWhere('name', $this->instance);
+            $qr        = cache()->get('whatsapp_qrcode');
 
-        return response()->json([
-            'status' => ($instance && $instance['connectionStatus'] === 'open') ? 'connected' : 'disconnected',
-            'base64' => $qr,
-        ]);
+            return response()->json([
+                'status' => ($instance && $instance['connectionStatus'] === 'open') ? 'connected' : 'disconnected',
+                'base64' => $qr,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('WhatsApp status error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function disconnect()
     {
-        $response = Http::withHeaders(['apikey' => $this->evolutionKey])
-            ->delete("{$this->evolutionUrl}/instance/logout/{$this->instance}");
+        try {
+            $response = Http::withHeaders(['apikey' => $this->evolutionKey])
+                ->delete("{$this->evolutionUrl}/instance/logout/{$this->instance}");
 
-        return response()->json($response->json());
+            return response()->json($response->json());
+
+        } catch (\Exception $e) {
+            Log::error('WhatsApp disconnect error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function debug(Request $request)
     {
-        return response()->json([
-            'success'  => true,
-            'instance' => $this->instance,
-            'api_url'  => $this->evolutionUrl,
-            'key_set'  => !empty($this->evolutionKey),
-            'method'   => $request->method(),
-            'body'     => $request->all(),
-        ]);
+        try {
+            return response()->json([
+                'success'      => true,
+                'instance'     => $this->instance,
+                'api_url'      => $this->evolutionUrl,
+                'key_set'      => !empty($this->evolutionKey),
+                'method'       => $request->method(),
+                'body'         => $request->all(),
+                'php_version'  => PHP_VERSION,
+                'laravel'      => app()->version(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error'   => $e->getMessage(),
+                'line'    => $e->getLine(),
+                'file'    => $e->getFile(),
+            ], 500);
+        }
     }
 
     public function webhook(Request $request)
     {
-        $payload = $request->all();
-        Log::info('WhatsApp Webhook:', $payload);
+        try {
+            $payload = $request->all();
+            Log::info('WhatsApp Webhook:', $payload);
 
-        $event = strtolower($request->input('event'));
-        $data  = $request->input('data');
+            $event = strtolower($request->input('event'));
+            $data  = $request->input('data');
 
-        if (str_contains($event, 'qrcode')) {
-            $qrBase64 = $data['qrcode']['base64'] ?? $data['base64'] ?? null;
-            if ($qrBase64) {
-                cache()->put('whatsapp_qrcode', $qrBase64, now()->addMinutes(2));
+            if (str_contains($event, 'qrcode')) {
+                $qrBase64 = $data['qrcode']['base64'] ?? $data['base64'] ?? null;
+                if ($qrBase64) {
+                    cache()->put('whatsapp_qrcode', $qrBase64, now()->addMinutes(2));
+                }
             }
-        }
 
-        if (str_contains($event, 'connection')) {
-            $status = $data['state'] ?? 'close';
-            cache()->put('whatsapp_status', $status, now()->addMinutes(60));
-        }
+            if (str_contains($event, 'connection')) {
+                $status = $data['state'] ?? 'close';
+                cache()->put('whatsapp_status', $status, now()->addMinutes(60));
+            }
 
-        return response()->json(['ok' => true]);
+            return response()->json(['ok' => true]);
+
+        } catch (\Exception $e) {
+            Log::error('WhatsApp webhook error: ' . $e->getMessage());
+            return response()->json(['ok' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 }
