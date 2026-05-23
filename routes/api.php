@@ -10,6 +10,8 @@ use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\CommissionController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ReportController;
+
 
 
 Route::get('/test-vivo', function() {
@@ -35,6 +37,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/whatsapp/debug', [WhatsAppController::class, 'debug']);
     Route::post('/whatsapp/debug', [WhatsAppController::class, 'debug']);
 
+    // Relatórios
+    Route::get('/reports', [ReportController::class, 'index']);
     // Comissões
     Route::get('/commissions', [CommissionController::class, 'index']);
     Route::post('/commissions/generate/{appointment}', [CommissionController::class, 'generate']);
