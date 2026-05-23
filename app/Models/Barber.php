@@ -17,4 +17,9 @@ class Barber extends Model
     {
         return $this->hasMany(Appointment::class);
     }
+
+    public function commissions()
+    {
+        return $this->hasMany(Commission::class);
+    }
 }
