@@ -8,6 +8,7 @@ use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\BarberController;
 use App\Http\Controllers\WhatsAppController;
 use App\Http\Controllers\CommissionController;
+use App\Http\Controllers\OrderController;
 
 Route::get('/test-vivo', function() {
     return "SISTEMA VIVO";
@@ -36,4 +37,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/commissions', [CommissionController::class, 'index']);
     Route::post('/commissions/generate/{appointment}', [CommissionController::class, 'generate']);
     Route::patch('/commissions/{commission}/pay', [CommissionController::class, 'markAsPaid']);
+
+    // Comandas
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::post('/orders', [OrderController::class, 'store']);
+    Route::get('/orders/{order}', [OrderController::class, 'show']);
+    Route::post('/orders/{order}/items', [OrderController::class, 'addItem']);
+    Route::delete('/orders/{order}/items/{item}', [OrderController::class, 'removeItem']);
+    Route::patch('/orders/{order}/close', [OrderController::class, 'close']);
 });
