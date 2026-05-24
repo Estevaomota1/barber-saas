@@ -22,6 +22,14 @@ Route::post('/booking/{slug}', [BookingController::class, 'store']);
 Route::get('/test-vivo', function() {
     return "SISTEMA VIVO";
 });
+Route::get('/fix-slugs', function() {
+    $barbershops = \App\Models\Barbershop::whereNull('slug')->get();
+    foreach ($barbershops as $b) {
+        $b->slug = \Illuminate\Support\Str::slug($b->name) . '-' . \Illuminate\Support\Str::random(6);
+        $b->save();
+    }
+    return response()->json(\App\Models\Barbershop::all(['id', 'name', 'slug']));
+});
 Route::get('/health', fn() => response()->json(['status' => 'ok']));
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
