@@ -15,27 +15,31 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\BookingController;
 
 // Rotas públicas de agendamento
-Route::get('/booking/{slug}', [BookingController::class, 'show']);
-Route::get('/booking/{slug}/availability', [BookingController::class, 'availability']);
-Route::post('/booking/{slug}', [BookingController::class, 'store']);
+    Route::get('/booking/{slug}', [BookingController::class, 'show']);
+    Route::get('/booking/{slug}/availability', [BookingController::class, 'availability']);
+    oute::post('/booking/{slug}', [BookingController::class, 'store']);
 
-Route::get('/test-vivo', function() {
+    Route::get('/test-vivo', function() {
     return "SISTEMA VIVO";
 });
 
-Route::get('/health', fn() => response()->json(['status' => 'ok']));
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/whatsapp/webhook', [WhatsAppController::class, 'webhook']);
+    Route::get('/health', fn() => response()->json(['status' => 'ok']));
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/whatsapp/webhook', [WhatsAppController::class, 'webhook']);
 
-Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::apiResource('barbers', BarberController::class);
     Route::apiResource('clients', ClientController::class);
     Route::apiResource('appointments', AppointmentController::class);
     Route::patch('appointments/{id}/status', [AppointmentController::class, 'updateStatus']);
-
+    // Barbearia do usuário logado
+    Route::get('/my-barbershop', function(\Illuminate\Http\Request $request) {
+    $barbershop = \App\Models\Barbershop::find($request->user()->barbershop_id);
+    return response()->json($barbershop);
+    });
     // Serviços
     Route::get('/services', [ServiceController::class, 'index']);
     Route::post('/services', [ServiceController::class, 'store']);
@@ -51,7 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Relatórios
     Route::get('/reports', [ReportController::class, 'index']);
-
+    //
     // Comissões
     Route::get('/commissions', [CommissionController::class, 'index']);
     Route::post('/commissions/generate/{appointment}', [CommissionController::class, 'generate']);
