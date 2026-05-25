@@ -17,7 +17,7 @@ use App\Http\Controllers\BookingController;
 // Rotas públicas de agendamento
     Route::get('/booking/{slug}', [BookingController::class, 'show']);
     Route::get('/booking/{slug}/availability', [BookingController::class, 'availability']);
-    oute::post('/booking/{slug}', [BookingController::class, 'store']);
+    Route::post('/booking/{slug}', [BookingController::class, 'store']);
 
     Route::get('/test-vivo', function() {
     return "SISTEMA VIVO";
