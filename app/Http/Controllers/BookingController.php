@@ -4,101 +4,106 @@ namespace App\Http\Controllers;
 
 use App\Models\Barbershop;
 use App\Models\Appointment;
-use App\Models\Barber;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
 class BookingController extends Controller
 {
-    // Retorna dados públicos da barbearia pelo slug
     public function show($slug)
     {
-        $barbershop = Barbershop::where('slug', $slug)
-            ->with(['services' => function($q) {
-                $q->where('active', true)->orderBy('name');
-            }, 'barbers'])
-            ->firstOrFail();
+        try {
+            $barbershop = Barbershop::where('slug', $slug)
+                ->with(['services' => function($q) {
+                    $q->where('active', true)->orderBy('name');
+                }, 'barbers'])
+                ->firstOrFail();
 
-        return response()->json([
-            'success'    => true,
-            'barbershop' => $barbershop,
-        ]);
+            return response()->json([
+                'success'    => true,
+                'barbershop' => $barbershop,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
-    // Retorna horários disponíveis
     public function availability(Request $request, $slug)
     {
-        $request->validate([
-            'barber_id' => 'required|exists:barbers,id',
-            'date'      => 'required|date',
-            'duration'  => 'required|integer|min:1',
-        ]);
+        try {
+            $request->validate([
+                'barber_id' => 'required|exists:barbers,id',
+                'date'      => 'required|date',
+                'duration'  => 'required|integer|min:1',
+            ]);
 
-        $barbershop = Barbershop::where('slug', $slug)->firstOrFail();
+            $barbershop = Barbershop::where('slug', $slug)->firstOrFail();
 
-        $date     = Carbon::parse($request->date);
-        $opening  = $barbershop->opening_time ?? '09:00';
-        $closing  = $barbershop->closing_time ?? '18:00';
-        $duration = $request->duration;
+            $date     = Carbon::parse($request->date);
+            $opening  = $barbershop->opening_time ?? '09:00';
+            $closing  = $barbershop->closing_time ?? '18:00';
+            $duration = (int) $request->duration;
 
-        // Gera slots de 30 em 30 minutos
-        $slots     = [];
-        $current   = Carbon::parse($date->format('Y-m-d') . ' ' . $opening);
-        $end       = Carbon::parse($date->format('Y-m-d') . ' ' . $closing);
+            $slots   = [];
+            $current = Carbon::parse($date->format('Y-m-d') . ' ' . $opening);
+            $end     = Carbon::parse($date->format('Y-m-d') . ' ' . $closing);
 
-        while ($current->copy()->addMinutes($duration)->lte($end)) {
-            $slots[] = $current->format('H:i');
-            $current->addMinutes(30);
+            while ($current->copy()->addMinutes($duration)->lte($end)) {
+                $slots[] = $current->format('H:i');
+                $current->addMinutes(30);
+            }
+
+            $booked = Appointment::where('barber_id', $request->barber_id)
+                ->whereDate('appointment_date', $date->format('Y-m-d'))
+                ->whereNotIn('status', ['cancelled'])
+                ->pluck('appointment_date')
+                ->map(fn($d) => Carbon::parse($d)->format('H:i'))
+                ->toArray();
+
+            $available = array_values(array_filter($slots, fn($s) => !in_array($s, $booked)));
+
+            return response()->json([
+                'success'   => true,
+                'available' => $available,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'error' => $e->getMessage(), 'line' => $e->getLine()], 500);
         }
-
-        // Remove slots já agendados
-        $booked = Appointment::where('barber_id', $request->barber_id)
-            ->whereDate('appointment_date', $date->format('Y-m-d'))
-            ->whereNotIn('status', ['cancelled'])
-            ->pluck('appointment_date')
-            ->map(fn($d) => Carbon::parse($d)->format('H:i'))
-            ->toArray();
-
-        $available = array_values(array_filter($slots, fn($s) => !in_array($s, $booked)));
-
-        return response()->json([
-            'success'   => true,
-            'available' => $available,
-        ]);
     }
 
-    // Cliente faz o agendamento
     public function store(Request $request, $slug)
     {
-        $request->validate([
-            'service_id'  => 'required|exists:services,id',
-            'barber_id'   => 'required|exists:barbers,id',
-            'date'        => 'required|date',
-            'time'        => 'required|string',
-            'client_name' => 'required|string',
-            'client_phone'=> 'required|string',
-        ]);
+        try {
+            $request->validate([
+                'service_id'   => 'required|exists:services,id',
+                'barber_id'    => 'required|exists:barbers,id',
+                'date'         => 'required|date',
+                'time'         => 'required|string',
+                'client_name'  => 'required|string',
+                'client_phone' => 'required|string',
+            ]);
 
-        $barbershop = Barbershop::where('slug', $slug)->firstOrFail();
-        $service    = \App\Models\Service::findOrFail($request->service_id);
+            $barbershop      = Barbershop::where('slug', $slug)->firstOrFail();
+            $service         = \App\Models\Service::findOrFail($request->service_id);
+            $appointmentDate = Carbon::parse($request->date . ' ' . $request->time);
 
-        $appointmentDate = Carbon::parse($request->date . ' ' . $request->time);
+            $appointment = Appointment::create([
+                'barbershop_id'    => $barbershop->id,
+                'service_id'       => $request->service_id,
+                'barber_id'        => $request->barber_id,
+                'appointment_date' => $appointmentDate,
+                'status'           => 'pending',
+                'price'            => $service->price,
+                'service_name'     => $service->name,
+                'client_name'      => $request->client_name,
+                'client_phone'     => $request->client_phone,
+            ]);
 
-        $appointment = Appointment::create([
-            'barbershop_id'  => $barbershop->id,
-            'service_id'     => $request->service_id,
-            'barber_id'      => $request->barber_id,
-            'appointment_date' => $appointmentDate,
-            'status'         => 'pending',
-            'price'          => $service->price,
-            'service_name'   => $service->name,
-            'client_name'    => $request->client_name,
-            'client_phone'   => $request->client_phone,
-        ]);
-
-        return response()->json([
-            'success'     => true,
-            'appointment' => $appointment,
-        ]);
+            return response()->json([
+                'success'     => true,
+                'appointment' => $appointment,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'error' => $e->getMessage(), 'line' => $e->getLine()], 500);
+        }
     }
 }
