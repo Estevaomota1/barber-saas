@@ -40,6 +40,13 @@ use App\Http\Controllers\BookingController;
     $barbershop = \App\Models\Barbershop::find($request->user()->barbershop_id);
     return response()->json($barbershop);
     });
+    Route::put('/my-barbershop', function(\Illuminate\Http\Request $request) {
+    $barbershop = \App\Models\Barbershop::find($request->user()->barbershop_id);
+    $barbershop->update($request->only([
+        'name', 'phone', 'address', 'description', 'opening_time', 'closing_time'
+    ]));
+    return response()->json($barbershop);
+    });
     // Serviços
     Route::get('/services', [ServiceController::class, 'index']);
     Route::post('/services', [ServiceController::class, 'store']);
