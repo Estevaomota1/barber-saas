@@ -9,223 +9,187 @@ use Illuminate\Validation\ValidationException;
 
 class AppointmentController extends Controller
 {
-    /**
-     * List all appointments for the authenticated user's barbershop
-     */
     public function index(Request $request)
-{
-    try {
-        $query = Appointment::whereHas('client', function ($query) use ($request) {
-            $query->where('barbershop_id', $request->user()->barbershop_id);
-        })->with('client');
+    {
+        try {
+            $barbershopId = $request->user()->barbershop_id;
 
-        // Filtro por data
-        if ($request->has('date')) {
-            $query->whereDate('appointment_date', $request->date);
-        }
+            $query = Appointment::where(function($q) use ($barbershopId) {
+                $q->where('barbershop_id', $barbershopId)
+                  ->orWhereHas('client', fn($q) => $q->where('barbershop_id', $barbershopId));
+            })->with(['client', 'barber', 'service']);
 
-        $appointments = $query->paginate(15);
+            if ($request->has('date')) {
+                $query->whereDate('appointment_date', $request->date);
+            }
+
+            $appointments = $query->orderByDesc('appointment_date')->paginate(15);
 
             return response()->json([
                 'message' => 'Agendamentos listados com sucesso',
-                'data' => $appointments
+                'data'    => $appointments,
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erro ao listar agendamentos',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Erro ao listar agendamentos', 'error' => $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Create a new appointment
-     */
     public function store(Request $request)
     {
         try {
-            // ✅ Validação obrigatória
             $validated = $request->validate([
-                'client_id' => 'required|exists:clients,id',
-                'appointment_date' => 'required|date'
+                'client_id'        => 'required|exists:clients,id',
+                'appointment_date' => 'required|date',
+                'barber_id'        => 'nullable|exists:barbers,id',
+                'service_id'       => 'nullable|exists:services,id',
+                'price'            => 'nullable|numeric',
+                'service_name'     => 'nullable|string',
             ]);
 
-            // ✅ Verifica se o cliente pertence à barbearia do usuário
             $client = Client::where('id', $validated['client_id'])
                 ->where('barbershop_id', $request->user()->barbershop_id)
                 ->firstOrFail();
 
-            // ✅ Evita agendamento duplicado no mesmo horário
+            // Bloqueia horário duplicado
             $exists = Appointment::where('appointment_date', $validated['appointment_date'])
-                ->whereHas('client', function ($query) use ($request) {
-                    $query->where('barbershop_id', $request->user()->barbershop_id);
-                })
+                ->where('barber_id', $validated['barber_id'] ?? null)
+                ->whereNotIn('status', ['cancelled'])
                 ->exists();
 
             if ($exists) {
-                return response()->json([
-                    'message' => 'Já existe um agendamento nesse horário'
-                ], 400);
+                return response()->json(['message' => 'Já existe um agendamento nesse horário'], 400);
             }
 
-            // ✅ Cria o agendamento
             $appointment = Appointment::create([
-    'client_id' => $client->id,
-    'appointment_date' => $validated['appointment_date'],
-    'status' => 'pending'
-]);
+                'client_id'        => $client->id,
+                'barbershop_id'    => $request->user()->barbershop_id,
+                'appointment_date' => $validated['appointment_date'],
+                'barber_id'        => $validated['barber_id'] ?? null,
+                'service_id'       => $validated['service_id'] ?? null,
+                'price'            => $validated['price'] ?? null,
+                'service_name'     => $validated['service_name'] ?? null,
+                'status'           => 'pending',
+            ]);
 
             return response()->json([
                 'message' => 'Agendamento criado com sucesso',
-                'data' => $appointment
+                'data'    => $appointment->load(['client', 'barber', 'service']),
             ], 201);
 
         } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Erro de validação',
-                'errors' => $e->errors()
-            ], 422);
+            return response()->json(['message' => 'Erro de validação', 'errors' => $e->errors()], 422);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'message' => 'Cliente não encontrado ou não pertence à sua barbearia'
-            ], 404);
+            return response()->json(['message' => 'Cliente não encontrado ou não pertence à sua barbearia'], 404);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erro ao criar agendamento',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Erro ao criar agendamento', 'error' => $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Get a specific appointment
-     */
     public function show(Request $request, $id)
     {
         try {
+            $barbershopId = $request->user()->barbershop_id;
+
             $appointment = Appointment::where('id', $id)
-                ->whereHas('client', function ($query) use ($request) {
-                    $query->where('barbershop_id', $request->user()->barbershop_id);
+                ->where(function($q) use ($barbershopId) {
+                    $q->where('barbershop_id', $barbershopId)
+                      ->orWhereHas('client', fn($q) => $q->where('barbershop_id', $barbershopId));
                 })
-                ->with('client')
+                ->with(['client', 'barber', 'service'])
                 ->firstOrFail();
 
-            return response()->json([
-                'message' => 'Agendamento encontrado',
-                'data' => $appointment
-            ]);
+            return response()->json(['message' => 'Agendamento encontrado', 'data' => $appointment]);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'message' => 'Agendamento não encontrado'
-            ], 404);
+            return response()->json(['message' => 'Agendamento não encontrado'], 404);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erro ao buscar agendamento',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Erro ao buscar agendamento', 'error' => $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Update an appointment
-     */
     public function update(Request $request, $id)
     {
         try {
-            // ✅ Validação obrigatória
             $validated = $request->validate([
-                'appointment_date' => 'required|date'
+                'appointment_date' => 'required|date',
+                'barber_id'        => 'nullable|exists:barbers,id',
+                'service_id'       => 'nullable|exists:services,id',
+                'price'            => 'nullable|numeric',
+                'service_name'     => 'nullable|string',
             ]);
 
-            // ✅ Busca o agendamento
+            $barbershopId = $request->user()->barbershop_id;
+
             $appointment = Appointment::where('id', $id)
-                ->whereHas('client', function ($query) use ($request) {
-                    $query->where('barbershop_id', $request->user()->barbershop_id);
+                ->where(function($q) use ($barbershopId) {
+                    $q->where('barbershop_id', $barbershopId)
+                      ->orWhereHas('client', fn($q) => $q->where('barbershop_id', $barbershopId));
                 })
                 ->firstOrFail();
 
-            // ✅ Evita duplicação com nova data
+            // Bloqueia duplicado no update
             $exists = Appointment::where('appointment_date', $validated['appointment_date'])
+                ->where('barber_id', $validated['barber_id'] ?? $appointment->barber_id)
                 ->where('id', '!=', $id)
-                ->whereHas('client', function ($query) use ($request) {
-                    $query->where('barbershop_id', $request->user()->barbershop_id);
-                })
+                ->whereNotIn('status', ['cancelled'])
                 ->exists();
 
             if ($exists) {
-                return response()->json([
-                    'message' => 'Já existe um agendamento nesse horário'
-                ], 400);
+                return response()->json(['message' => 'Já existe um agendamento nesse horário'], 400);
             }
 
-            // ✅ Atualiza
             $appointment->update($validated);
 
             return response()->json([
                 'message' => 'Agendamento atualizado com sucesso',
-                'data' => $appointment
+                'data'    => $appointment->load(['client', 'barber', 'service']),
             ]);
 
         } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Erro de validação',
-                'errors' => $e->errors()
-            ], 422);
+            return response()->json(['message' => 'Erro de validação', 'errors' => $e->errors()], 422);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'message' => 'Agendamento não encontrado'
-            ], 404);
+            return response()->json(['message' => 'Agendamento não encontrado'], 404);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erro ao atualizar agendamento',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Erro ao atualizar agendamento', 'error' => $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Delete an appointment
-     */
     public function destroy(Request $request, $id)
     {
         try {
+            $barbershopId = $request->user()->barbershop_id;
+
             $appointment = Appointment::where('id', $id)
-                ->whereHas('client', function ($query) use ($request) {
-                    $query->where('barbershop_id', $request->user()->barbershop_id);
+                ->where(function($q) use ($barbershopId) {
+                    $q->where('barbershop_id', $barbershopId)
+                      ->orWhereHas('client', fn($q) => $q->where('barbershop_id', $barbershopId));
                 })
                 ->firstOrFail();
 
             $appointment->delete();
 
-            return response()->json([
-                'message' => 'Agendamento deletado com sucesso'
-            ]);
+            return response()->json(['message' => 'Agendamento deletado com sucesso']);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'message' => 'Agendamento não encontrado'
-            ], 404);
+            return response()->json(['message' => 'Agendamento não encontrado'], 404);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erro ao deletar agendamento',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Erro ao deletar agendamento', 'error' => $e->getMessage()], 500);
         }
     }
-     /**
-     * Update appointment status
-     */
+
     public function updateStatus(Request $request, $id)
     {
         try {
             $validated = $request->validate([
-                'status' => 'required|in:pending,confirmed,cancelled,completed'
+                'status' => 'required|in:pending,confirmed,cancelled,completed',
             ]);
 
+            $barbershopId = $request->user()->barbershop_id;
+
             $appointment = Appointment::where('id', $id)
-                ->whereHas('client', function ($query) use ($request) {
-                    $query->where('barbershop_id', $request->user()->barbershop_id);
+                ->where(function($q) use ($barbershopId) {
+                    $q->where('barbershop_id', $barbershopId)
+                      ->orWhereHas('client', fn($q) => $q->where('barbershop_id', $barbershopId));
                 })
                 ->firstOrFail();
 
@@ -233,23 +197,15 @@ class AppointmentController extends Controller
 
             return response()->json([
                 'message' => 'Status atualizado com sucesso',
-                'data' => $appointment
+                'data'    => $appointment,
             ]);
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'message' => 'Status inválido',
-                'errors' => $e->errors()
-            ], 422);
+        } catch (ValidationException $e) {
+            return response()->json(['message' => 'Status inválido', 'errors' => $e->errors()], 422);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'message' => 'Agendamento não encontrado'
-            ], 404);
+            return response()->json(['message' => 'Agendamento não encontrado'], 404);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erro ao atualizar status',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['message' => 'Erro ao atualizar status', 'error' => $e->getMessage()], 500);
         }
     }
 }
