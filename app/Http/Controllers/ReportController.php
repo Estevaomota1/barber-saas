@@ -47,18 +47,8 @@ class ReportController extends Controller
                 : 0;
 
             // Comandas (Orders)
-            $orders = [];
-            $totalOrders = 0;
+            $totalOrders      = $appointments->count();
             $barbershopProfit = $totalRevenue;
-
-            if (class_exists(\App\Models\Order::class)) {
-                $orderQuery = \App\Models\Order::where('barbershop_id', $barbershopId)
-                    ->whereBetween('created_at', [$start, $end])
-                    ->where('status', 'closed')
-                    ->get();
-                $totalOrders = $orderQuery->count();
-            }
-
             // Comissões
             $commissionsPaid    = 0;
             $commissionsPending = 0;
