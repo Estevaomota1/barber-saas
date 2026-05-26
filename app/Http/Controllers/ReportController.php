@@ -53,22 +53,6 @@ class ReportController extends Controller
             $commissionsPaid    = 0;
             $commissionsPending = 0;
 
-            if (class_exists(\App\Models\Commission::class)) {
-                $commissionsPaid = \App\Models\Commission::whereHas('appointment', function($q) use ($barbershopId) {
-                    $q->where('barbershop_id', $barbershopId);
-                })->where('paid', true)
-                  ->whereBetween('created_at', [$start, $end])
-                  ->sum('amount');
-
-                $commissionsPending = \App\Models\Commission::whereHas('appointment', function($q) use ($barbershopId) {
-                    $q->where('barbershop_id', $barbershopId);
-                })->where('paid', false)
-                  ->whereBetween('created_at', [$start, $end])
-                  ->sum('amount');
-
-                $barbershopProfit = $totalRevenue - $commissionsPaid - $commissionsPending;
-            }
-
             // Faturamento por dia
             $dailyRevenue = $appointments
                 ->groupBy(fn($a) => Carbon::parse($a->appointment_date)->format('d/m'))
