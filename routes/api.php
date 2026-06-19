@@ -36,16 +36,47 @@ use App\Http\Controllers\BookingController;
     Route::apiResource('appointments', AppointmentController::class);
     Route::patch('appointments/{id}/status', [AppointmentController::class, 'updateStatus']);
     // Barbearia do usuário logado
-    Route::get('/my-barbershop', function(\Illuminate\Http\Request $request) {
-    $barbershop = \App\Models\Barbershop::find($request->user()->barbershop_id);
-    return response()->json($barbershop);
+        Route::get('/my-barbershop', function(\Illuminate\Http\Request $request) {
+        $barbershop = \App\Models\Barbershop::with('barbers')
+            ->find($request->user()->barbershop_id);
+
+        return response()->json($barbershop);
     });
+
     Route::put('/my-barbershop', function(\Illuminate\Http\Request $request) {
-    $barbershop = \App\Models\Barbershop::find($request->user()->barbershop_id);
-    $barbershop->update($request->only([
-        'name', 'phone', 'address', 'description', 'opening_time', 'closing_time'
-    ]));
-    return response()->json($barbershop);
+        $barbershop = \App\Models\Barbershop::find($request->user()->barbershop_id);
+
+        $barbershop->update($request->only([
+            'name',
+            'phone',
+            'address',
+            'description',
+            'opening_time',
+            'closing_time',
+            'logo'
+        ]));
+
+        return response()->json($barbershop);
+    });
+
+    // Atualizar QR Pix de um barbeiro
+    Route::put('/barbers/{barber}/pix', function(
+        \Illuminate\Http\Request $request,
+        $barberId
+    ) {
+        $barbershop = \App\Models\Barbershop::find(
+            $request->user()->barbershop_id
+        );
+
+        $barber = \App\Models\Barber::where('id', $barberId)
+            ->where('barbershop_id', $barbershop->id)
+            ->firstOrFail();
+
+        $barber->update([
+            'pix_qr' => $request->input('pix_qr')
+        ]);
+
+        return response()->json($barber);
     });
     // Serviços
     Route::get('/services', [ServiceController::class, 'index']);
