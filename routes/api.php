@@ -35,6 +35,9 @@ use App\Http\Controllers\BookingController;
     Route::apiResource('clients', ClientController::class);
     Route::apiResource('appointments', AppointmentController::class);
     Route::patch('appointments/{id}/status', [AppointmentController::class, 'updateStatus']);
+    Route::get('/admin/barbershops', [AuthController::class, 'listBarbershops']);
+    Route::post('/admin/barbershops/{id}/toggle-block', [AuthController::class, 'toggleBlock']);
+    Route::post('/admin/barbershops/{id}/extend-trial', [AuthController::class, 'extendTrial']);
     // Barbearia do usuário logado
         Route::get('/my-barbershop', function(\Illuminate\Http\Request $request) {
         $barbershop = \App\Models\Barbershop::with('barbers')
@@ -83,7 +86,8 @@ use App\Http\Controllers\BookingController;
     Route::post('/services', [ServiceController::class, 'store']);
     Route::put('/services/{service}', [ServiceController::class, 'update']);
     Route::delete('/services/{service}', [ServiceController::class, 'destroy']);
-
+    // Registro de vendedor
+    Route::post('/register/vendor', [AuthController::class, 'registerVendor']);
     // WhatsApp
     Route::get('/whatsapp/status', [WhatsAppController::class, 'status']);
     Route::get('/whatsapp/connect', [WhatsAppController::class, 'connect']);
