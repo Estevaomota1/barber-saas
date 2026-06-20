@@ -6,10 +6,8 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        'https://barber-frontend-tan.vercel.app',
-        'http://localhost:5173',
-    ],
+    // Usando '*' para permitir qualquer origem, ou adicione a nova URL específica
+    'allowed_origins' => ['*'], 
 
     'allowed_origins_patterns' => [],
 
