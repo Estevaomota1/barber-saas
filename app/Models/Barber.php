@@ -6,8 +6,7 @@ use Illuminate\Database\Eloquent\Model;
  
 class Barber extends Model
 {
-    protected $fillable = ['name', 'phone', 'barbershop_id', 'pix_qr'];
- 
+    protected $fillable = ['name', 'phone', 'barbershop_id', 'pix_qr', 'pix_key'];
     public function barbershop()
     {
         return $this->belongsTo(Barbershop::class);

@@ -75,8 +75,9 @@ use App\Http\Controllers\BookingController;
             ->where('barbershop_id', $barbershop->id)
             ->firstOrFail();
 
-        $barber->update([
-            'pix_qr' => $request->input('pix_qr')
+                $barber->update([
+            'pix_qr'  => $request->input('pix_qr'),
+            'pix_key' => $request->input('pix_key'),
         ]);
 
         return response()->json($barber);
