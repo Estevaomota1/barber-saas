@@ -35,53 +35,59 @@ class AppointmentController extends Controller
     }
 
    public function store(Request $request)
-    {
-        try {
-            $request->validate([
-    'barber_id' => 'required|exists:barbers,id',
-    'service_id' => 'required|exists:services,id',
-    'appointment_date' => 'required|date',
-    'barbershop_id' => 'nullable|exists:barbershops,id'
-]);
+{
+    try {
+        $request->validate([
+            'barber_id' => 'required|exists:barbers,id',
+            'service_id' => 'required|exists:services,id',
+            'appointment_date' => 'required|date',
+            'barbershop_id' => 'nullable|exists:barbershops,id'
+        ]);
 
-            // Tenta identificar a barbearia
-            $barbershopId = $request->barbershop_id;
-            if (!$barbershopId && $request->user() && $request->user()->barbershop) {
-                $barbershopId = $request->user()->barbershop->id;
-            }
-
-            if (!$barbershopId) {
-                return response()->json(['message' => 'Barbearia não identificada.'], 422);
-            }
-
-            // Verificar se já existe agendamento
-            $exists = Appointment::where('barber_id', $request->barber_id)
-    ->where('appointment_date', $request->appointment_date)
-    ->exists();
-
-            if ($exists) {
-                return response()->json(['message' => 'Horário já ocupado'], 422);
-            }
-
-                        $appointment = Appointment::create([
-                'barbershop_id' => $barbershopId,
-                'barber_id' => $request->barber_id,
-                'service_id' => $request->service_id,
-                'client_id' => $request->client_id,
-                'appointment_date' => $request->appointment_date,
-                'status' => 'pending',
-            ]);
-
-            return response()->json($appointment, 201);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json(['message' => 'Erro de validação', 'errors' => $e->errors()], 422);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['message' => 'Recurso não encontrado'], 404);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Erro ao criar agendamento', 'error' => $e->getMessage()], 500);
+        // Tenta identificar a barbearia
+        $barbershopId = $request->barbershop_id;
+        if (!$barbershopId && $request->user() && $request->user()->barbershop) {
+            $barbershopId = $request->user()->barbershop->id;
         }
+
+        if (!$barbershopId) {
+            return response()->json(['message' => 'Barbearia não identificada.'], 422);
+        }
+
+        // 👇 Busca o serviço para pegar nome e preço
+        $service = \App\Models\Service::findOrFail($request->service_id);
+
+        // Verificar se já existe agendamento
+        $exists = Appointment::where('barber_id', $request->barber_id)
+            ->where('appointment_date', $request->appointment_date)
+            ->exists();
+
+        if ($exists) {
+            return response()->json(['message' => 'Horário já ocupado'], 422);
+        }
+
+        $appointment = Appointment::create([
+            'barbershop_id' => $barbershopId,
+            'barber_id' => $request->barber_id,
+            'service_id' => $request->service_id,
+            'client_id' => $request->client_id,
+            'appointment_date' => $request->appointment_date,
+            'status' => 'pending',
+            'price' => $service->price,           // 👈 Preço do serviço
+            'service_name' => $service->name,     // 👈 Nome do serviço
+        ]);
+
+        return response()->json($appointment, 201);
+        
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json(['message' => 'Erro de validação', 'errors' => $e->errors()], 422);
+    } catch (\Exception $e) {
+        return response()->json(['message' => 'Erro ao criar agendamento', 'error' => $e->getMessage()], 500);
     }
+}
+
+
+
     public function show(Request $request, $id)
     {
         try {
