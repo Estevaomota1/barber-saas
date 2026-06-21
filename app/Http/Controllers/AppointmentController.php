@@ -38,12 +38,11 @@ class AppointmentController extends Controller
     {
         try {
             $request->validate([
-                'barber_id' => 'required|exists:barbers,id',
-                'service_id' => 'required|exists:services,id',
-                'date' => 'required|date',
-                'time' => 'required',
-                'barbershop_id' => 'nullable|exists:barbershops,id'
-            ]);
+    'barber_id' => 'required|exists:barbers,id',
+    'service_id' => 'required|exists:services,id',
+    'appointment_date' => 'required|date',
+    'barbershop_id' => 'nullable|exists:barbershops,id'
+]);
 
             // Tenta identificar a barbearia
             $barbershopId = $request->barbershop_id;
@@ -57,21 +56,19 @@ class AppointmentController extends Controller
 
             // Verificar se já existe agendamento
             $exists = Appointment::where('barber_id', $request->barber_id)
-                ->where('date', $request->date)
-                ->where('time', $request->time)
-                ->exists();
+    ->where('appointment_date', $request->appointment_date)
+    ->exists();
 
             if ($exists) {
                 return response()->json(['message' => 'Horário já ocupado'], 422);
             }
 
-            $appointment = Appointment::create([
+                        $appointment = Appointment::create([
                 'barbershop_id' => $barbershopId,
                 'barber_id' => $request->barber_id,
                 'service_id' => $request->service_id,
-                'client_id' => $request->user() ? $request->user()->id : null,
-                'date' => $request->date,
-                'time' => $request->time,
+                'client_id' => $request->client_id,
+                'appointment_date' => $request->appointment_date,
                 'status' => 'pending',
             ]);
 
