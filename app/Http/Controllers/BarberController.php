@@ -26,39 +26,34 @@ class BarberController extends Controller
         }
     }
 
-    public function store(Request $request)
-    {
-                        try {
-                            $validated = $request->validate([
-                    'name'  => 'required|string|max:255',
-                    'phone' => 'nullable|string|max:20',
-                    'photo' => 'nullable',
-                ]);
-
-                $barber = Barber::create([
-                    'name'          => $validated['name'],
-                    'phone'         => $validated['phone'] ?? null,
-                    'photo'         => $validated['photo'] ?? null,
-                    'barbershop_id' => $request->user()->barbershop_id,
-                ]);
-
-            return response()->json([
-                'message' => 'Barbeiro criado com sucesso',
-                'data' => $barber
-            ], 201);
-
-        } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Erro de validação',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erro ao criar barbeiro',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+   public function store(Request $request)
+{
+    try {
+        // Log para debug
+        \Log::info('Store - Dados recebidos:', $request->all());
+        
+        $barber = new Barber();
+        $barber->name = $request->name;
+        $barber->phone = $request->phone;
+        $barber->photo = $request->photo; // ⬅️ SALVA A FOTO
+        
+        $barber->save();
+        
+        \Log::info('Store - Barbeiro salvo:', $barber->toArray());
+        
+        return response()->json([
+            'success' => true,
+            'data' => $barber
+        ], 201);
+        
+    } catch (\Exception $e) {
+        \Log::error('Store - Erro:', ['error' => $e->getMessage()]);
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
 
     public function show(Request $request, $id)
     {
@@ -86,39 +81,32 @@ class BarberController extends Controller
     public function update(Request $request, $id)
 {
     try {
-        $validated = $request->validate([
-            'name'  => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'photo' => 'nullable',
-        ]);
-
-        $barber = Barber::where('barbershop_id', $request->user()->barbershop_id)
-            ->where('id', $id)
-            ->firstOrFail();
-
-        $barber->update([
-            'name'  => $validated['name'],
-            'phone' => $validated['phone'] ?? null,
-            'photo' => $validated['photo'] ?? null,
-        ]);
-
+        $barber = Barber::findOrFail($id);
+        
+        // Log para debug
+        \Log::info('Update - Dados recebidos:', $request->all());
+        
+        $barber->name = $request->name ?? $barber->name;
+        $barber->phone = $request->phone ?? $barber->phone;
+        
+        // Só atualiza a foto se veio no request
+        if ($request->has('photo')) {
+            $barber->photo = $request->photo;
+        }
+        
+        $barber->save();
+        
+        \Log::info('Update - Barbeiro atualizado:', $barber->toArray());
+        
         return response()->json([
-            'message' => 'Barbeiro atualizado com sucesso',
+            'success' => true,
             'data' => $barber
         ]);
-
-    } catch (ValidationException $e) {
-        return response()->json([
-            'message' => 'Erro de validação',
-            'errors' => $e->errors()
-        ], 422);
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        return response()->json([
-            'message' => 'Barbeiro não encontrado'
-        ], 404);
+        
     } catch (\Exception $e) {
+        \Log::error('Update - Erro:', ['error' => $e->getMessage()]);
         return response()->json([
-            'message' => 'Erro ao atualizar barbeiro',
+            'success' => false,
             'error' => $e->getMessage()
         ], 500);
     }
