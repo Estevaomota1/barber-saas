@@ -28,17 +28,19 @@ class BarberController extends Controller
 
     public function store(Request $request)
     {
-        try {
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'phone' => 'nullable|string|max:20'
-            ]);
+                        try {
+                            $validated = $request->validate([
+                    'name'  => 'required|string|max:255',
+                    'phone' => 'nullable|string|max:20',
+                    'photo' => 'nullable|string',
+                ]);
 
-            $barber = Barber::create([
-                'name' => $validated['name'],
-                'phone' => $validated['phone'] ?? null,
-                'barbershop_id' => $request->user()->barbershop_id
-            ]);
+                $barber = Barber::create([
+                    'name'          => $validated['name'],
+                    'phone'         => $validated['phone'] ?? null,
+                    'photo'         => $validated['photo'] ?? null,
+                    'barbershop_id' => $request->user()->barbershop_id,
+                ]);
 
             return response()->json([
                 'message' => 'Barbeiro criado com sucesso',
@@ -82,40 +84,45 @@ class BarberController extends Controller
     }
 
     public function update(Request $request, $id)
-    {
-        try {
-            $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'phone' => 'nullable|string|max:20'
-            ]);
+{
+    try {
+        $validated = $request->validate([
+            'name'  => 'required|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'photo' => 'nullable|string',
+        ]);
 
-            $barber = Barber::where('barbershop_id', $request->user()->barbershop_id)
-                ->where('id', $id)
-                ->firstOrFail();
+        $barber = Barber::where('barbershop_id', $request->user()->barbershop_id)
+            ->where('id', $id)
+            ->firstOrFail();
 
-            $barber->update($validated);
+        $barber->update([
+            'name'  => $validated['name'],
+            'phone' => $validated['phone'] ?? null,
+            'photo' => $validated['photo'] ?? null,
+        ]);
 
-            return response()->json([
-                'message' => 'Barbeiro atualizado com sucesso',
-                'data' => $barber
-            ]);
+        return response()->json([
+            'message' => 'Barbeiro atualizado com sucesso',
+            'data' => $barber
+        ]);
 
-        } catch (ValidationException $e) {
-            return response()->json([
-                'message' => 'Erro de validação',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'message' => 'Barbeiro não encontrado'
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Erro ao atualizar barbeiro',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+    } catch (ValidationException $e) {
+        return response()->json([
+            'message' => 'Erro de validação',
+            'errors' => $e->errors()
+        ], 422);
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        return response()->json([
+            'message' => 'Barbeiro não encontrado'
+        ], 404);
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Erro ao atualizar barbeiro',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
 
     public function destroy(Request $request, $id)
     {
