@@ -32,7 +32,7 @@ class BarberController extends Controller
                             $validated = $request->validate([
                     'name'  => 'required|string|max:255',
                     'phone' => 'nullable|string|max:20',
-                    'photo' => 'nullable|string',
+                    'photo' => 'nullable',
                 ]);
 
                 $barber = Barber::create([
@@ -89,7 +89,7 @@ class BarberController extends Controller
         $validated = $request->validate([
             'name'  => 'required|string|max:255',
             'phone' => 'nullable|string|max:20',
-            'photo' => 'nullable|string',
+            'photo' => 'nullable',
         ]);
 
         $barber = Barber::where('barbershop_id', $request->user()->barbershop_id)
