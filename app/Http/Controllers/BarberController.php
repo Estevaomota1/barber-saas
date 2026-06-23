@@ -36,9 +36,17 @@ class BarberController extends Controller
         $barber->phone = $request->phone;
         $barber->photo = $request->photo;
         $barber->barbershop_id = $request->user()->barbershop_id; // ⬅️ ESSENCIAL!
-        
+        $barber->photo = $request->photo;
+
+\Log::info('BEFORE SAVE', [
+    'photo_length' => strlen($barber->photo ?? ''),
+]);
         $barber->save();
-        
+        \Log::info('STORE BARBER', [
+    'photo_exists' => isset($request->photo),
+    'photo_length' => strlen($request->photo ?? ''),
+    'keys' => array_keys($request->all()),
+]);
         \Log::info('Store - Barbeiro salvo:', $barber->toArray());
         
         return response()->json(['success' => true, 'data' => $barber], 201);
