@@ -29,29 +29,22 @@ class BarberController extends Controller
    public function store(Request $request)
 {
     try {
-        // Log para debug
         \Log::info('Store - Dados recebidos:', $request->all());
         
         $barber = new Barber();
         $barber->name = $request->name;
         $barber->phone = $request->phone;
-        $barber->photo = $request->photo; // ⬅️ SALVA A FOTO
+        $barber->photo = $request->photo;
+        $barber->barbershop_id = $request->user()->barbershop_id; // ⬅️ ESSENCIAL!
         
         $barber->save();
         
         \Log::info('Store - Barbeiro salvo:', $barber->toArray());
         
-        return response()->json([
-            'success' => true,
-            'data' => $barber
-        ], 201);
-        
+        return response()->json(['success' => true, 'data' => $barber], 201);
     } catch (\Exception $e) {
         \Log::error('Store - Erro:', ['error' => $e->getMessage()]);
-        return response()->json([
-            'success' => false,
-            'error' => $e->getMessage()
-        ], 500);
+        return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
     }
 }
 
