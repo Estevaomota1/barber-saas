@@ -63,13 +63,25 @@ use App\Http\Controllers\BookingController;
     });
 
     // Atualizar QR Pix de um barbeiro
-    Route::put('/barbers/{barber}/pix', function(
-        \Illuminate\Http\Request $request,
-        $barberId
-    ) {
-        $barbershop = \App\Models\Barbershop::find(
-            $request->user()->barbershop_id
-        );
+    Route::put('/barbers/{id}/pix', function(
+    \Illuminate\Http\Request $request,
+    $id
+) {
+    $barbershop = \App\Models\Barbershop::find(
+        $request->user()->barbershop_id
+    );
+
+    $barber = \App\Models\Barber::where('id', $id)
+        ->where('barbershop_id', $barbershop->id)
+        ->firstOrFail();
+
+    $barber->update([
+        'pix_qr'  => $request->input('pix_qr'),
+        'pix_key' => $request->input('pix_key'),
+    ]);
+
+    return response()->json($barber);
+});
 
         $barber = \App\Models\Barber::where('id', $barberId)
             ->where('barbershop_id', $barbershop->id)
