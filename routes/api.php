@@ -108,4 +108,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/products/{product}', [ProductController::class, 'update']);
     Route::patch('/products/{product}/stock', [ProductController::class, 'adjustStock']);
     Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+    //cancelamento de agendamento
+    Route::get('/cancel/{token}', [BookingController::class, 'cancelShow']);
+    Route::post('/cancel/{token}', [BookingController::class, 'cancelStore']);
 });

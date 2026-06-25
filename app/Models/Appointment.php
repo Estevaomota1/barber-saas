@@ -14,6 +14,9 @@ class Appointment extends Model
         'service_name',
         'client_name',
         'client_phone',
+        'cancel_token',
+        'cancelled_at',
+        'cancel_reason',
     ];
 
     protected $casts = [

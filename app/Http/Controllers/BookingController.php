@@ -1,12 +1,13 @@
 <?php
-
+ 
 namespace App\Http\Controllers;
-
+ 
 use App\Models\Barbershop;
 use App\Models\Appointment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
-
+ 
 class BookingController extends Controller
 {
     public function show($slug)
@@ -17,7 +18,7 @@ class BookingController extends Controller
                     $q->where('active', true)->orderBy('name');
                 }, 'barbers'])
                 ->firstOrFail();
-
+ 
             return response()->json([
                 'success'    => true,
                 'barbershop' => $barbershop,
@@ -26,7 +27,7 @@ class BookingController extends Controller
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
-
+ 
     public function availability(Request $request, $slug)
     {
         try {
@@ -35,32 +36,32 @@ class BookingController extends Controller
                 'date'      => 'required|date',
                 'duration'  => 'required|integer|min:1',
             ]);
-
+ 
             $barbershop = Barbershop::where('slug', $slug)->firstOrFail();
-
+ 
             $date     = Carbon::parse($request->date);
             $opening  = $barbershop->opening_time ?? '09:00';
             $closing  = $barbershop->closing_time ?? '18:00';
             $duration = (int) $request->duration;
-
+ 
             $slots   = [];
             $current = Carbon::parse($date->format('Y-m-d') . ' ' . $opening);
             $end     = Carbon::parse($date->format('Y-m-d') . ' ' . $closing);
-
+ 
             while ($current->copy()->addMinutes($duration)->lte($end)) {
                 $slots[] = $current->format('H:i');
                 $current->addMinutes(30);
             }
-
+ 
             $booked = Appointment::where('barber_id', $request->barber_id)
                 ->whereDate('appointment_date', $date->format('Y-m-d'))
                 ->whereNotIn('status', ['cancelled'])
                 ->pluck('appointment_date')
                 ->map(fn($d) => Carbon::parse($d)->format('H:i'))
                 ->toArray();
-
+ 
             $available = array_values(array_filter($slots, fn($s) => !in_array($s, $booked)));
-
+ 
             return response()->json([
                 'success'   => true,
                 'available' => $available,
@@ -69,7 +70,7 @@ class BookingController extends Controller
             return response()->json(['success' => false, 'error' => $e->getMessage(), 'line' => $e->getLine()], 500);
         }
     }
-
+ 
     public function store(Request $request, $slug)
     {
         try {
@@ -81,11 +82,11 @@ class BookingController extends Controller
                 'client_name'  => 'required|string',
                 'client_phone' => 'required|string',
             ]);
-
+ 
             $barbershop      = Barbershop::where('slug', $slug)->firstOrFail();
             $service         = \App\Models\Service::findOrFail($request->service_id);
             $appointmentDate = Carbon::parse($request->date . ' ' . $request->time);
-
+ 
             $appointment = Appointment::create([
                 'barbershop_id'    => $barbershop->id,
                 'service_id'       => $request->service_id,
@@ -96,14 +97,66 @@ class BookingController extends Controller
                 'service_name'     => $service->name,
                 'client_name'      => $request->client_name,
                 'client_phone'     => $request->client_phone,
+                'cancel_token'     => Str::uuid(),
             ]);
-
+ 
             return response()->json([
-                'success'     => true,
-                'appointment' => $appointment,
+                'success'      => true,
+                'appointment'  => $appointment,
+                'cancel_token' => $appointment->cancel_token,
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'error' => $e->getMessage(), 'line' => $e->getLine()], 500);
+        }
+    }
+ 
+    // GET /api/cancel/{token} — busca o agendamento pelo token
+    public function cancelShow($token)
+    {
+        try {
+            $appointment = Appointment::where('cancel_token', $token)
+                ->with(['barber', 'service'])
+                ->firstOrFail();
+ 
+            if ($appointment->status === 'cancelled') {
+                return response()->json(['success' => false, 'error' => 'Este agendamento já foi cancelado.'], 400);
+            }
+ 
+            return response()->json([
+                'success'     => true,
+                'appointment' => [
+                    'id'               => $appointment->id,
+                    'client_name'      => $appointment->client_name,
+                    'service_name'     => $appointment->service?->name ?? $appointment->service_name,
+                    'barber_name'      => $appointment->barber?->name,
+                    'appointment_date' => $appointment->appointment_date,
+                    'status'           => $appointment->status,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'error' => 'Agendamento não encontrado.'], 404);
+        }
+    }
+ 
+    // POST /api/cancel/{token} — executa o cancelamento
+    public function cancelStore(Request $request, $token)
+    {
+        try {
+            $appointment = Appointment::where('cancel_token', $token)->firstOrFail();
+ 
+            if ($appointment->status === 'cancelled') {
+                return response()->json(['success' => false, 'error' => 'Este agendamento já foi cancelado.'], 400);
+            }
+ 
+            $appointment->update([
+                'status'        => 'cancelled',
+                'cancelled_at'  => Carbon::now(),
+                'cancel_reason' => $request->input('reason'),
+            ]);
+ 
+            return response()->json(['success' => true, 'message' => 'Agendamento cancelado com sucesso.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'error' => 'Agendamento não encontrado.'], 404);
         }
     }
 }
