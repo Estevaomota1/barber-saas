@@ -111,4 +111,5 @@ Route::middleware('auth:sanctum')->group(function () {
     //cancelamento de agendamento
     Route::get('/cancel/{token}', [BookingController::class, 'cancelShow']);
     Route::post('/cancel/{token}', [BookingController::class, 'cancelStore']);
+    Route::post('/cancel/{token}/confirm', [BookingController::class, 'cancelConfirm']);
 });
