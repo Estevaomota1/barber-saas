@@ -47,6 +47,12 @@ class BarberController extends Controller
     'photo_length' => strlen($request->photo ?? ''),
     'keys' => array_keys($request->all()),
 ]);
+$barber->save();
+
+\Log::info('AFTER SAVE', [
+    'id' => $barber->id,
+    'photo_is_null' => is_null($barber->photo),
+]);
         \Log::info('Store - Barbeiro salvo:', $barber->toArray());
         
         return response()->json(['success' => true, 'data' => $barber], 201);
