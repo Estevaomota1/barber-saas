@@ -62,10 +62,10 @@ Route::middleware('auth:sanctum')->group(function () {
             ->where('barbershop_id', $barbershop->id)
             ->firstOrFail();
 
-        $barber->update([
-            'pix_qr'  => $request->input('pix_qr'),
-            'pix_key' => $request->input('pix_key'),
-        ]);
+        $data = [];
+        if ($request->has('pix_qr')) $data['pix_qr'] = $request->input('pix_qr');
+        if ($request->has('pix_key')) $data['pix_key'] = $request->input('pix_key');
+        if (!empty($data)) $barber->update($data);
 
         return response()->json($barber);
     });
