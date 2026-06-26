@@ -27,7 +27,10 @@ Route::get('/health', fn() => response()->json(['status' => 'ok']));
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/whatsapp/webhook', [WhatsAppController::class, 'webhook']);
-
+//cancelamento de agendamento
+    Route::get('/cancel/{token}', [BookingController::class, 'cancelShow']);
+    Route::post('/cancel/{token}', [BookingController::class, 'cancelStore']);
+    Route::get('/booking/{slug}/my-appointments', [BookingController::class, 'clientAppointments']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -38,7 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/barbershops', [AuthController::class, 'listBarbershops']);
     Route::post('/admin/barbershops/{id}/toggle-block', [AuthController::class, 'toggleBlock']);
     Route::post('/admin/barbershops/{id}/extend-trial', [AuthController::class, 'extendTrial']);
-
+    
     // Barbearia do usuário logado
     Route::get('/my-barbershop', function(Request $request) {
         $barbershop = \App\Models\Barbershop::with('barbers')
@@ -108,8 +111,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/products/{product}', [ProductController::class, 'update']);
     Route::patch('/products/{product}/stock', [ProductController::class, 'adjustStock']);
     Route::delete('/products/{product}', [ProductController::class, 'destroy']);
-    //cancelamento de agendamento
-    Route::get('/cancel/{token}', [BookingController::class, 'cancelShow']);
-    Route::post('/cancel/{token}', [BookingController::class, 'cancelStore']);
-    Route::get('/booking/{slug}/my-appointments', [BookingController::class, 'clientAppointments']);
+    
 });
