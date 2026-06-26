@@ -27,7 +27,34 @@ class BookingController extends Controller
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
- 
+        public function myAppointments(Request $request, $slug)
+        {
+            try {
+                $request->validate([
+                    'phone' => 'required|string',
+                    'name'  => 'nullable|string', // opcional para refinar busca
+                ]);
+
+                $barbershop = Barbershop::where('slug', $slug)->firstOrFail();
+
+                $appointments = Appointment::where('barbershop_id', $barbershop->id)
+                    ->where('client_phone', $request->phone)
+                    ->when($request->name, function ($query) use ($request) {
+                        return $query->where('client_name', 'ILIKE', '%' . $request->name . '%');
+                    })
+                    ->whereIn('status', ['pending', 'scheduled']) // apenas ativos
+                    ->with(['barber', 'service'])
+                    ->orderBy('appointment_date', 'asc')
+                    ->get();
+
+                return response()->json([
+                    'success'      => true,
+                    'appointments' => $appointments,
+                ]);
+            } catch (\Exception $e) {
+                return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+            }
+        }
     public function availability(Request $request, $slug)
     {
         try {
@@ -111,7 +138,7 @@ class BookingController extends Controller
     }
  
     // GET /api/cancel/{token} — busca o agendamento pelo token
-    public function cancelShow($token)
+    public function cancelShow($token)  
     {
         try {
             $appointment = Appointment::where('cancel_token', $token)

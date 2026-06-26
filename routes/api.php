@@ -88,7 +88,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Relatórios
     Route::get('/reports', [ReportController::class, 'index']);
-
+   
     // Comissões
     Route::get('/commissions', [CommissionController::class, 'index']);
     Route::post('/commissions/generate/{appointment}', [CommissionController::class, 'generate']);
@@ -111,5 +111,5 @@ Route::middleware('auth:sanctum')->group(function () {
     //cancelamento de agendamento
     Route::get('/cancel/{token}', [BookingController::class, 'cancelShow']);
     Route::post('/cancel/{token}', [BookingController::class, 'cancelStore']);
-    Route::post('/cancel/{token}/confirm', [BookingController::class, 'cancelConfirm']);
+    Route::get('/booking/{slug}/my-appointments', [BookingController::class, 'clientAppointments']);
 });
