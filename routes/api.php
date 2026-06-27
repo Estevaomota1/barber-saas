@@ -30,7 +30,7 @@ Route::post('/whatsapp/webhook', [WhatsAppController::class, 'webhook']);
 //cancelamento de agendamento
     Route::get('/cancel/{token}', [BookingController::class, 'cancelShow']);
     Route::post('/cancel/{token}', [BookingController::class, 'cancelStore']);
-    Route::get('/booking/{slug}/my-appointments', [BookingController::class, 'clientAppointments']);
+    Route::get('/booking/{slug}/my-appointments', [BookingController::class, 'myAppointments']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);

@@ -30,19 +30,18 @@ class BookingController extends Controller
         public function myAppointments(Request $request, $slug)
         {
             try {
-                $request->validate([
-                    'phone' => 'required|string',
-                    'name'  => 'nullable|string', // opcional para refinar busca
+                                $request->validate([
+                    'client_phone' => 'required|string',
+                    'client_name'  => 'nullable|string',
                 ]);
-
                 $barbershop = Barbershop::where('slug', $slug)->firstOrFail();
 
                 $appointments = Appointment::where('barbershop_id', $barbershop->id)
-                    ->where('client_phone', $request->phone)
-                    ->when($request->name, function ($query) use ($request) {
-                        return $query->where('client_name', 'ILIKE', '%' . $request->name . '%');
+                    ->where('client_phone', $request->client_phone)
+                    ->when($request->client_name, function ($query) use ($request) {
+                    return $query->where('client_name', 'ILIKE', '%' . $request->client_name . '%');
                     })
-                    ->whereIn('status', ['pending', 'scheduled']) // apenas ativos
+                    ->whereIn('status', ['pending', 'confirmed'])// apenas ativos
                     ->with(['barber', 'service'])
                     ->orderBy('appointment_date', 'asc')
                     ->get();
