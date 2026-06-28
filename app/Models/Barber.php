@@ -3,7 +3,7 @@
 namespace App\Models;
  
 use Illuminate\Database\Eloquent\Model;
- 
+ /*ajuste   */
 class Barber extends Model
 {
     protected $fillable = ['name', 'phone', 'barbershop_id', 'pix_qr', 'pix_key', 'photo'];
