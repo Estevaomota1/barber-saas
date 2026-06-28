@@ -77,15 +77,12 @@ class BookingController extends Controller
                 'saturday'
             ];
 
-            $dayName = $dayNames[$date->dayOfWeek];
+            $dayName = strtolower($date->format('l'));
             $workingHours = $barbershop->working_hours ?? [];
-
-                        $workingHours = $barbershop->working_hours ?? [];
 
             $workingDays = $workingHours['working_days'] ?? [];
 
-            $open = $workingHours['open'] ?? '07:00';
-            $close = $workingHours['close'] ?? '18:00';
+            $dayConfig = $workingHours[$dayName] ?? [];
 
             // verifica se o dia está permitido
             if (!in_array($dayName, $workingDays)) {

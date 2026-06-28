@@ -15,7 +15,7 @@ class Order extends Model
         'notes',
         'closed_at',
     ];
-
+    // Define the casts for the attributes
     protected $casts = [
         'total'     => 'decimal:2',
         'closed_at' => 'datetime',

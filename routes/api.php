@@ -53,11 +53,12 @@ Route::middleware('auth:sanctum')->group(function () {
         $barbershop = \App\Models\Barbershop::find($request->user()->barbershop_id);
         $barbershop->update($request->only([
             'name', 'phone', 'address', 'description',
-            'opening_time', 'closing_time', 'logo'
+            'opening_time', 'closing_time', 'logo', 'working_hours' 
         ]));
         return response()->json($barbershop);
     });
 
+    
     // Atualizar QR Pix de um barbeiro
     Route::put('/barbers/{barber}/pix', function(Request $request, $barber) {
         $barbershop = \App\Models\Barbershop::find($request->user()->barbershop_id);
