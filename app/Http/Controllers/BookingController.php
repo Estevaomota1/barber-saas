@@ -80,10 +80,15 @@ class BookingController extends Controller
             $dayName = $dayNames[$date->dayOfWeek];
             $workingHours = $barbershop->working_hours ?? [];
 
-            $dayConfig = $workingHours[$dayName] ?? null;
+                        $workingHours = $barbershop->working_hours ?? [];
 
-            // Se estiver fechado nesse dia
-            if (!$dayConfig || empty($dayConfig['active'])) {
+            $workingDays = $workingHours['working_days'] ?? [];
+
+            $open = $workingHours['open'] ?? '07:00';
+            $close = $workingHours['close'] ?? '18:00';
+
+            // verifica se o dia está permitido
+            if (!in_array($dayName, $workingDays)) {
                 return response()->json([
                     'success' => true,
                     'available' => [],
