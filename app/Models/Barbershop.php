@@ -17,8 +17,12 @@ class Barbershop extends Model
         'opening_time',
         'closing_time',
         'logo',
+        'working_hours',
     ];
- 
+  protected $casts = [
+        'working_hours' => 'array',
+    ];
+
     protected static function boot()
     {
         parent::boot();

@@ -65,9 +65,34 @@ class BookingController extends Controller
  
             $barbershop = Barbershop::where('slug', $slug)->firstOrFail();
  
-            $date     = Carbon::parse($request->date);
-            $opening  = $barbershop->opening_time ?? '09:00';
-            $closing  = $barbershop->closing_time ?? '18:00';
+            $date = Carbon::parse($request->date);
+
+            $dayNames = [
+                'sunday',
+                'monday',
+                'tuesday',
+                'wednesday',
+                'thursday',
+                'friday',
+                'saturday'
+            ];
+
+            $dayName = $dayNames[$date->dayOfWeek];
+            $workingHours = $barbershop->working_hours ?? [];
+
+            $dayConfig = $workingHours[$dayName] ?? null;
+
+            // Se estiver fechado nesse dia
+            if (!$dayConfig || empty($dayConfig['active'])) {
+                return response()->json([
+                    'success' => true,
+                    'available' => [],
+                ]);
+            }
+
+            $opening = $dayConfig['open'] ?? $barbershop->opening_time ?? '09:00';
+            $closing = $dayConfig['close'] ?? $barbershop->closing_time ?? '18:00';
+
             $duration = (int) $request->duration;
  
             $slots   = [];
