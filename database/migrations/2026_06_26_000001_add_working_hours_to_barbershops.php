@@ -9,14 +9,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('barbershops', function (Blueprint $table) {
-            $table->json('working_hours')->nullable()->after('closing_time');
+            $table->json('working_days')->nullable()->after('closing_time');
         });
     }
 
     public function down(): void
     {
         Schema::table('barbershops', function (Blueprint $table) {
-            $table->dropColumn('working_hours');
+            $table->dropColumn('working_days');
         });
     }
 };
