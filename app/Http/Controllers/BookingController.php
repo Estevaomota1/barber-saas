@@ -82,19 +82,18 @@ class BookingController extends Controller
 
             $workingDays = $workingHours['working_days'] ?? [];
 
-            $dayConfig = $workingHours[$dayName] ?? [];
+             $dayConfig = $workingHours[$dayName] ?? null;
 
             // verifica se o dia está permitido
-            if (!in_array($dayName, $workingDays)) {
+           if (!in_array($dayName, $workingDays) && !isset($dayConfig)) {
                 return response()->json([
                     'success' => true,
                     'available' => [],
                 ]);
             }
 
-            $opening = $dayConfig['open'] ?? $barbershop->opening_time ?? '09:00';
-            $closing = $dayConfig['close'] ?? $barbershop->closing_time ?? '18:00';
-
+            $opening = $dayConfig['open'] ?? $workingHours['open'] ?? $barbershop->opening_time ?? '09:00';
+            $closing = $dayConfig['close'] ?? $workingHours['close'] ?? $barbershop->closing_time ?? '18:00';
             $duration = (int) $request->duration;
  
             $slots   = [];
@@ -103,7 +102,7 @@ class BookingController extends Controller
  
             while ($current->copy()->addMinutes($duration)->lte($end)) {
                 $slots[] = $current->format('H:i');
-                $current->addMinutes(30);
+                $current->addMinutes($duration);
             }
  
             $booked = Appointment::where('barber_id', $request->barber_id)
