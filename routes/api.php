@@ -13,6 +13,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\BarberBlockController;
 
 // Rotas públicas de agendamento
 Route::get('/booking/{slug}', [BookingController::class, 'show']);
@@ -112,5 +113,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/products/{product}', [ProductController::class, 'update']);
     Route::patch('/products/{product}/stock', [ProductController::class, 'adjustStock']);
     Route::delete('/products/{product}', [ProductController::class, 'destroy']);
-    
+    //Bloqueio horarios
+    Route::get('/barbers/{barber}/blocks', [BarberBlockController::class, 'index']);
+    Route::post('/barbers/{barber}/blocks', [BarberBlockController::class, 'store']);
+    Route::delete('/barbers/{barber}/blocks/{block}', [BarberBlockController::class, 'destroy']);
 });
