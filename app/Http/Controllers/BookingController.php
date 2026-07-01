@@ -55,112 +55,142 @@ class BookingController extends Controller
             }
         }
     public function availability(Request $request, $slug)
-    {
-        try {
-            $request->validate([
-                'barber_id' => 'required|exists:barbers,id',
-                'date'      => 'required|date',
-                'duration'  => 'required|integer|min:1',
-            ]);
- 
-            $barbershop = Barbershop::where('slug', $slug)->firstOrFail();
- 
-            $date = Carbon::parse($request->date);
+{
+    try {
+        $request->validate([
+            'barber_id' => 'required|exists:barbers,id',
+            'date'      => 'required|date',
+            'duration'  => 'required|integer|min:1',
+        ]);
 
-            $dayNames = [
-                'sunday',
-                'monday',
-                'tuesday',
-                'wednesday',
-                'thursday',
-                'friday',
-                'saturday'
-            ];
+        $barbershop = Barbershop::where('slug', $slug)->firstOrFail();
 
-            $dayName = strtolower($date->format('l'));
-            $workingHours = $barbershop->working_hours ?? [];
+        $date = Carbon::parse($request->date);
 
-            $workingDays = $workingHours['working_days'] ?? [];
+        $dayName = strtolower($date->format('l'));
+        $workingHours = $barbershop->working_hours ?? [];
 
-             $dayConfig = $workingHours[$dayName] ?? null;
+        $workingDays = $workingHours['working_days'] ?? [];
 
-            // verifica se o dia está permitido
-           if (!in_array($dayName, $workingDays) && !isset($dayConfig)) {
-                return response()->json([
-                    'success' => true,
-                    'available' => [],
-                ]);
-            }
+        $dayConfig = $workingHours[$dayName] ?? null;
 
-            $opening = $dayConfig['open'] ?? $workingHours['open'] ?? $barbershop->opening_time ?? '09:00';
-            $closing = $dayConfig['close'] ?? $workingHours['close'] ?? $barbershop->closing_time ?? '18:00';
-            $duration = (int) $request->duration;
- 
-            $slots   = [];
-            $current = Carbon::parse($date->format('Y-m-d') . ' ' . $opening);
-            $end     = Carbon::parse($date->format('Y-m-d') . ' ' . $closing);
- 
-            while ($current->copy()->addMinutes($duration)->lte($end)) {
-                $slots[] = $current->format('H:i');
-                $current->addMinutes($duration);
-            }
- 
-            $booked = Appointment::where('barber_id', $request->barber_id)
-                ->whereDate('appointment_date', $date->format('Y-m-d'))
-                ->whereNotIn('status', ['cancelled'])
-                ->pluck('appointment_date')
-                ->map(fn($d) => Carbon::parse($d)->format('H:i'))
-                ->toArray();
- 
-            $available = array_values(array_filter($slots, fn($s) => !in_array($s, $booked)));
- 
+        // verifica se o dia está permitido
+        if (!in_array($dayName, $workingDays) && !isset($dayConfig)) {
             return response()->json([
-                'success'   => true,
-                'available' => $available,
+                'success' => true,
+                'available' => [],
             ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'error' => $e->getMessage(), 'line' => $e->getLine()], 500);
         }
+
+        $opening = $dayConfig['open'] ?? $workingHours['open'] ?? $barbershop->opening_time ?? '09:00';
+        $closing = $dayConfig['close'] ?? $workingHours['close'] ?? $barbershop->closing_time ?? '18:00';
+        $duration = (int) $request->duration;
+
+        $slots   = [];
+        $current = Carbon::parse($date->format('Y-m-d') . ' ' . $opening);
+        $end     = Carbon::parse($date->format('Y-m-d') . ' ' . $closing);
+
+        while ($current->copy()->addMinutes($duration)->lte($end)) {
+            $slots[] = $current->format('H:i');
+            $current->addMinutes($duration);
+        }
+
+        // Horários já ocupados por agendamentos
+        $booked = Appointment::where('barber_id', $request->barber_id)
+            ->whereDate('appointment_date', $date->format('Y-m-d'))
+            ->whereNotIn('status', ['cancelled'])
+            ->pluck('appointment_date')
+            ->map(fn($d) => Carbon::parse($d)->format('H:i'))
+            ->toArray();
+
+        // Bloqueios manuais do barbeiro (pontuais ou recorrentes)
+        $blocks = \App\Models\BarberBlock::where('barber_id', $request->barber_id)
+            ->where(function ($q) use ($date, $dayName) {
+                $q->whereDate('date', $date->format('Y-m-d'))
+                  ->orWhere('day_of_week', $dayName);
+            })
+            ->get();
+
+        $isBlocked = function ($slotTime) use ($blocks, $duration, $date) {
+            $slotStart = Carbon::parse($date->format('Y-m-d') . ' ' . $slotTime);
+            $slotEnd   = $slotStart->copy()->addMinutes($duration);
+
+            foreach ($blocks as $block) {
+                $blockStart = Carbon::parse($date->format('Y-m-d') . ' ' . $block->start_time);
+                $blockEnd   = Carbon::parse($date->format('Y-m-d') . ' ' . $block->end_time);
+
+                if ($slotStart->lt($blockEnd) && $slotEnd->gt($blockStart)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        $available = array_values(array_filter(
+            $slots,
+            fn($s) => !in_array($s, $booked) && !$isBlocked($s)
+        ));
+
+        return response()->json([
+            'success'   => true,
+            'available' => $available,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'error' => $e->getMessage(), 'line' => $e->getLine()], 500);
     }
+}
  
     public function store(Request $request, $slug)
-    {
-        try {
-            $request->validate([
-                'service_id'   => 'required|exists:services,id',
-                'barber_id'    => 'required|exists:barbers,id',
-                'date'         => 'required|date',
-                'time'         => 'required|string',
-                'client_name'  => 'required|string',
-                'client_phone' => 'required|string',
-            ]);
- 
-            $barbershop      = Barbershop::where('slug', $slug)->firstOrFail();
-            $service         = \App\Models\Service::findOrFail($request->service_id);
-            $appointmentDate = Carbon::parse($request->date . ' ' . $request->time);
- 
-            $appointment = Appointment::create([
-                'barbershop_id'    => $barbershop->id,
-                'service_id'       => $request->service_id,
-                'barber_id'        => $request->barber_id,
-                'appointment_date' => $appointmentDate,
-                'status'           => 'pending',
-                'price'            => $service->price,
-                'service_name'     => $service->name,
-                'client_name'      => $request->client_name,
-                'client_phone'     => $request->client_phone,
-                'cancel_token'     => Str::uuid(),
-            ]);
- 
+{
+    try {
+        $request->validate([
+            'service_id'   => 'required|exists:services,id',
+            'barber_id'    => 'required|exists:barbers,id',
+            'date'         => 'required|date',
+            'time'         => 'required|string',
+            'client_name'  => 'required|string',
+            'client_phone' => 'required|string',
+        ]);
+
+        $barbershop      = Barbershop::where('slug', $slug)->firstOrFail();
+        $service         = \App\Models\Service::findOrFail($request->service_id);
+        $appointmentDate = Carbon::parse($request->date . ' ' . $request->time);
+
+        // NOVO: impede que dois clientes marquem o mesmo horário
+        $exists = Appointment::where('barber_id', $request->barber_id)
+            ->where('appointment_date', $appointmentDate)
+            ->whereNotIn('status', ['cancelled'])
+            ->exists();
+
+        if ($exists) {
             return response()->json([
-                'success'      => true,
-                'appointment'  => $appointment,
-                'cancel_token' => $appointment->cancel_token,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'error' => $e->getMessage(), 'line' => $e->getLine()], 500);
+                'success' => false,
+                'error'   => 'Este horário acabou de ser reservado por outra pessoa. Escolha outro horário.',
+            ], 422);
         }
+
+        $appointment = Appointment::create([
+            'barbershop_id'    => $barbershop->id,
+            'service_id'       => $request->service_id,
+            'barber_id'        => $request->barber_id,
+            'appointment_date' => $appointmentDate,
+            'status'           => 'pending',
+            'price'            => $service->price,
+            'service_name'     => $service->name,
+            'client_name'      => $request->client_name,
+            'client_phone'     => $request->client_phone,
+            'cancel_token'     => Str::uuid(),
+        ]);
+
+        return response()->json([
+            'success'      => true,
+            'appointment'  => $appointment,
+            'cancel_token' => $appointment->cancel_token,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['success' => false, 'error' => $e->getMessage(), 'line' => $e->getLine()], 500);
     }
+}
  
     // GET /api/cancel/{token} — busca o agendamento pelo token
     public function cancelShow($token)  
