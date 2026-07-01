@@ -21,4 +21,8 @@ class Barber extends Model
     {
         return $this->hasMany(Commission::class);
     }
+    public function blocks()
+{
+    return $this->hasMany(BarberBlock::class);
+}
 }
