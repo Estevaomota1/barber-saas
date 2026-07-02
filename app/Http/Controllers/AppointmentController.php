@@ -58,12 +58,23 @@ class AppointmentController extends Controller
         $service = \App\Models\Service::findOrFail($request->service_id);
 
         // Verificar se já existe agendamento
-        $exists = Appointment::where('barber_id', $request->barber_id)
-            ->where('appointment_date', $request->appointment_date)
-            ->exists();
+         // Verifica sobreposição de horário considerando a duração do serviço
+        $newStart = \Carbon\Carbon::parse($request->appointment_date);
+        $newEnd   = $newStart->copy()->addMinutes($service->duration ?? 30);
 
-        if ($exists) {
-            return response()->json(['message' => 'Horário já ocupado'], 422);
+        $existingAppointments = Appointment::where('barber_id', $request->barber_id)
+            ->whereDate('appointment_date', $newStart->format('Y-m-d'))
+            ->whereNotIn('status', ['cancelled'])
+            ->with('service')
+            ->get();
+
+        foreach ($existingAppointments as $existing) {
+            $existingStart = \Carbon\Carbon::parse($existing->appointment_date);
+            $existingEnd   = $existingStart->copy()->addMinutes($existing->service->duration ?? 30);
+
+            if ($newStart->lt($existingEnd) && $newEnd->gt($existingStart)) {
+                return response()->json(['message' => 'Horário já ocupado ou conflita com outro agendamento'], 422);
+            }
         }
 
         $appointment = Appointment::create([
