@@ -96,12 +96,29 @@ class BookingController extends Controller
         }
 
         // Horários já ocupados por agendamentos
-        $booked = Appointment::where('barber_id', $request->barber_id)
-            ->whereDate('appointment_date', $date->format('Y-m-d'))
-            ->whereNotIn('status', ['cancelled'])
-            ->pluck('appointment_date')
-            ->map(fn($d) => Carbon::parse($d)->format('H:i'))
-            ->toArray();
+        // Busca agendamentos existentes COM a duração do serviço de cada um
+$bookedAppointments = Appointment::where('barber_id', $request->barber_id)
+    ->whereDate('appointment_date', $date->format('Y-m-d'))
+    ->whereNotIn('status', ['cancelled'])
+    ->with('service')
+    ->get();
+
+$isBooked = function ($slotTime) use ($bookedAppointments, $duration, $date) {
+    $slotStart = Carbon::parse($date->format('Y-m-d') . ' ' . $slotTime);
+    $slotEnd   = $slotStart->copy()->addMinutes($duration);
+
+    foreach ($bookedAppointments as $appt) {
+        $apptStart = Carbon::parse($appt->appointment_date);
+        // usa a duração do serviço do agendamento existente (fallback 30min se não tiver)
+        $apptDuration = $appt->service->duration ?? 30;
+        $apptEnd = $apptStart->copy()->addMinutes($apptDuration);
+
+        if ($slotStart->lt($apptEnd) && $slotEnd->gt($apptStart)) {
+            return true; // há sobreposição
+        }
+    }
+    return false;
+};
 
         // Bloqueios manuais do barbeiro (pontuais ou recorrentes)
         $blocks = \App\Models\BarberBlock::where('barber_id', $request->barber_id)
@@ -127,9 +144,9 @@ class BookingController extends Controller
         };
 
         $available = array_values(array_filter(
-            $slots,
-            fn($s) => !in_array($s, $booked) && !$isBlocked($s)
-        ));
+    $slots,
+    fn($s) => !$isBooked($s) && !$isBlocked($s)
+));
 
         return response()->json([
             'success'   => true,
