@@ -22,15 +22,20 @@ class WhatsAppController extends Controller
     public function connect()
 {
     try {
-        $webhookUrl = config('app.url') . '/api/whatsapp/webhook';
+        $webhookResponse = Http::withHeaders([
+    'apikey' => $this->evolutionKey,
+])->post("{$this->evolutionUrl}/webhook/set/{$this->instance}", [
+    'enabled'         => true,
+    'url'             => $webhookUrl,
+    'webhookByEvents' => true,
+    'webhookBase64'   => true,
+    'events'          => ['QRCODE_UPDATED', 'CONNECTION_UPDATE'],
+]);
 
-        Http::withHeaders(['apikey' => $this->evolutionKey])
-            ->post("{$this->evolutionUrl}/webhook/set/{$this->instance}", [
-                'url'               => $webhookUrl,
-                'webhook_by_events' => true,
-                'webhook_base64'    => true,
-                'events'            => ['QRCODE_UPDATED', 'CONNECTION_UPDATE'],
-            ]);
+dd(
+    $webhookResponse->status(),
+    $webhookResponse->json()
+);
 
         $connectResponse = Http::withHeaders(['apikey' => $this->evolutionKey])
             ->get("{$this->evolutionUrl}/instance/connect/{$this->instance}");
