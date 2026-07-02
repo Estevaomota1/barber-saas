@@ -20,35 +20,53 @@ class WhatsAppController extends Controller
     }
 
     public function connect()
-    {
-        try {
-            $webhookUrl = config('app.url') . '/api/whatsapp/webhook';
+{
+    try {
+        $webhookUrl = config('app.url') . '/api/whatsapp/webhook';
 
-            Http::withHeaders(['apikey' => $this->evolutionKey])
-                ->post("{$this->evolutionUrl}/webhook/set/{$this->instance}", [
-                    'url'               => $webhookUrl,
-                    'webhook_by_events' => true,
-                    'webhook_base64'    => true,
-                    'events'            => ['QRCODE_UPDATED', 'CONNECTION_UPDATE'],
-                ]);
+        Http::withHeaders(['apikey' => $this->evolutionKey])
+            ->post("{$this->evolutionUrl}/webhook/set/{$this->instance}", [
+                'url'               => $webhookUrl,
+                'webhook_by_events' => true,
+                'webhook_base64'    => true,
+                'events'            => ['QRCODE_UPDATED', 'CONNECTION_UPDATE'],
+            ]);
 
-            Http::withHeaders(['apikey' => $this->evolutionKey])
-                ->get("{$this->evolutionUrl}/instance/connect/{$this->instance}");
+        $connectResponse = Http::withHeaders(['apikey' => $this->evolutionKey])
+            ->get("{$this->evolutionUrl}/instance/connect/{$this->instance}");
 
+        $connectData = $connectResponse->json();
+
+        Log::info('Evolution connect response:', $connectData ?? []);
+
+        // A Evolution API geralmente já devolve o QR direto nessa chamada
+        $qr = $connectData['base64']
+            ?? $connectData['qrcode']['base64']
+            ?? null;
+
+        if ($qr) {
+            cache()->put('whatsapp_qrcode', $qr, now()->addMinutes(2));
+        } else {
+            // Se não veio direto, tenta o que já estiver em cache (via webhook)
             $qr = cache()->get('whatsapp_qrcode');
-
-            return response()->json(['base64' => $qr, 'count' => $qr ? 1 : 0]);
-
-        } catch (\Exception $e) {
-            Log::error('WhatsApp connect error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'error'   => $e->getMessage(),
-                'line'    => $e->getLine(),
-                'file'    => $e->getFile(),
-            ], 500);
         }
+
+        return response()->json([
+            'base64' => $qr,
+            'count'  => $qr ? 1 : 0,
+            'raw'    => $connectData, // 👈 temporário, pra debug — remove depois
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('WhatsApp connect error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'error'   => $e->getMessage(),
+            'line'    => $e->getLine(),
+            'file'    => $e->getFile(),
+        ], 500);
     }
+}
 
     public function status()
     {
